@@ -952,7 +952,43 @@ Apakah Anda ingin beralih melihat **bagaimana cara menerapkan perubahan idiomati
 
 a-ai:
 Kode lengkap yang Anda bagikan ini mengonfirmasi seluruh mekanisme jembatan internal dari proyek `termux-adb` milik `nohajc`. Di sini kita bisa melihat dengan jelas bagaimana program mengotomatisasi interaksi dengan perintah `termux-usb`, mengelola *multithreading*, serta menangkap *File Descriptor* (FD) dari soket.
+Berikut adalah penjelasan detail mengenai cara kerja fungsi-fungsi krusial yang baru saja Anda bagikan:
 
+1. Eksekusi Jembatan: `run_under_termux_usb`
+Fungsi ini bertugas memanggil perkakas bawaan Termux secara otomatis melalui sistem:
+```
+let mut cmd = Command::new("termux-usb");
+cmd.env("TERMUX_USB_DEV", usb_dev_path)
+   .arg("-e").arg(cmd_path)
+   .args(["-E", "-r", usb_dev_path]);
 
+```
+- **Fungsi**: Ketika ada perangkat USB baru terdeteksi, fungsi ini memicu perintah `termux-usb`.
+- **Parameter `-e`**: Parameter ini memerintahkan Termux untuk mengeksekusi kembali biner ADB/Fastboot (`cmd_path`) setelah izin akses USB diberikan oleh pengguna melalui dialog pop-up Android.
+- **Penyuntikan Soket**: Nomor soket (`sock_send_fd`) disisipkan ke dalam variabel lingkungan `TERMUX_ADB_SOCK_FD` agar proses anak (*child process*) yang baru mengetahui ke mana mereka harus mengirimkan data FD USB yang sah.
 <br>
+
+2. Otomatisasi Pemindaian: `scan_for_usb_devices` & `request_usb_fds`
+Fungsi ini bertugas menjaga kestabilan koneksi dengan melakukan pemindaian berkala (*polling*):
+- Program menjalankan perulangan tanpa batas (`loop`) yang beristirahat setiap 2 detik (`thread::sleep(Duration::from_millis(2000))`).
+- Di setiap siklusnya, program memanggil `get_termux_usb_list()` (yang mengeksekusi `termux-usb -l`) untuk melihat apakah ada perangkat baru yang dicolokkan.
+- Jika ada perangkat di dalam daftar yang belum tercatat pada daftar sebelumnya (`last_usb_list`), program akan mendeteksi itu sebagai *"perangkat baru terhubung"* (`info!("new device connected: ...")`) dan otomatis meminta izin akses USB melalui fungsi `run_under_termux_usb`.
+
+3. Otak Penerima Data: `start_socket_listener`
+Ini adalah fungsi yang berjalan di latar belakang (*background thread*). Tugasnya adalah bersiap siaga mendengarkan soket data:
+```
+match socket.recv_with_fd(buf.as_mut_slice(), fds.as_mut_slice()) { ... }
+
+```
+- Saat pengguna menekan tombol "Izinkan" pada pop-up Android, sistem Termux akan mengirimkan paket biner melalui Unix Domain Socket.
+- Fungsi `recv_with_fd` (dari pustaka `sendfd`) menangkap nomor *File Descriptor* mentah tersebut dan menyimpannya ke array `fds[0]`.
+- **Pencatatan Global**: Setelah FD didapat, program langsung memasukkan informasi tersebut ke tabel memori global:
+-- Jalur filenya (misal: `/dev/bus/usb/001/002`) didaftarkan ke folder virtual melalui `update_dir_map`.
+
+
+
+
+
+
+
 
