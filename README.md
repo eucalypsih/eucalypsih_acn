@@ -946,7 +946,7 @@ Apa Saja Keuntungan dari Perubahan Ini?
 
 
 q-ai:
-Apakah Anda ingin beralih melihat **bagaimana cara menerapkan perubahan idiomatic ini pada fungsi `termuxadb&#x5F;closedir`** agar proses penutupan foldernya juga menjadi lebih bersih?
+Apakah Anda ingin beralih melihat **bagaimana cara menerapkan perubahan idiomatic ini pada fungsi termuxadb_closedir_ agar proses penutupan foldernya juga menjadi lebih bersih?
 
 
 
